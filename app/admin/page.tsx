@@ -254,19 +254,28 @@ function SimpleTablePanel({ table, title, subtitle }: { table: 'manufacturers' |
     setModalOpen(true);
   };
 
+  const [error, setError] = useState('');
+
   const save = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
+    setError('');
     const payload = {
       name: form.name.trim(),
       country: form.country.trim() || null,
       website: form.website.trim() || null,
       contact_email: form.contact_email.trim() || null,
     };
+    let result;
     if (editId) {
-      await supabase.from(table).update(payload).eq('id', editId);
+      result = await supabase.from(table).update(payload).eq('id', editId);
     } else {
-      await supabase.from(table).insert(payload);
+      result = await supabase.from(table).insert(payload);
+    }
+    if (result.error) {
+      setError(result.error.message);
+      setSaving(false);
+      return;
     }
     setSaving(false);
     setModalOpen(false);
@@ -342,6 +351,7 @@ function SimpleTablePanel({ table, title, subtitle }: { table: 'manufacturers' |
         <Field label="E-pasts">
           <Input value={form.contact_email} onChange={v => setForm({ ...form, contact_email: v })} placeholder="info@vitra.com" type="email" />
         </Field>
+        {error && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2 mb-2">{error}</div>}
         <div className="flex gap-2 mt-5">
           <ActionBtn onClick={save} label={saving ? 'Saglabā...' : 'Saglabāt'} disabled={saving || !form.name.trim()} />
           <ActionBtn onClick={() => setModalOpen(false)} label="Atcelt" variant="secondary" />
