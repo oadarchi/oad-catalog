@@ -6,8 +6,8 @@ import Link from 'next/link';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 interface Category { id: string; name: string; slug: string; parent_id: string | null; sort_order: number; }
-interface Manufacturer { id: string; name: string; country: string | null; website: string | null; contact_email: string | null; }
-interface Dealer { id: string; name: string; country: string | null; website: string | null; contact_email: string | null; }
+interface Manufacturer { id: string; name: string; country?: string | null; website?: string | null; contact_email?: string | null; }
+interface Dealer { id: string; name: string; country?: string | null; website?: string | null; contact_email?: string | null; }
 
 type Tab = 'categories' | 'manufacturers' | 'dealers' | 'materials' | 'finishes' | 'types';
 
@@ -247,6 +247,24 @@ function SimpleTablePanel({ table, title, subtitle }: { table: 'manufacturers' |
 
   useEffect(() => { load(); }, [load]);
 
+  // Detect which optional columns exist in the table
+  const [columns, setColumns] = useState<string[]>([]);
+  useEffect(() => {
+    // Probe for optional columns by reading a single row
+    (async () => {
+      const { data, error: e } = await supabase.from(table).select('*').limit(1);
+      if (data && data.length > 0) {
+        setColumns(Object.keys(data[0]));
+      } else if (!e) {
+        // Empty table — try insert/read schema via error probing
+        // Fallback: just show name
+        setColumns(['id', 'name']);
+      }
+    })();
+  }, [table]);
+
+  const hasCol = (col: string) => columns.length === 0 || columns.includes(col);
+
   const openNew = () => { setEditId(null); setForm({ name: '', country: '', website: '', contact_email: '' }); setModalOpen(true); };
   const openEdit = (item: any) => {
     setEditId(item.id);
@@ -260,12 +278,12 @@ function SimpleTablePanel({ table, title, subtitle }: { table: 'manufacturers' |
     if (!form.name.trim()) return;
     setSaving(true);
     setError('');
-    const payload = {
+    const payload: Record<string, any> = {
       name: form.name.trim(),
-      country: form.country.trim() || null,
-      website: form.website.trim() || null,
-      contact_email: form.contact_email.trim() || null,
     };
+    if (hasCol('country')) payload.country = form.country.trim() || null;
+    if (hasCol('website')) payload.website = form.website.trim() || null;
+    if (hasCol('contact_email')) payload.contact_email = form.contact_email.trim() || null;
     let result;
     if (editId) {
       result = await supabase.from(table).update(payload).eq('id', editId);
@@ -306,9 +324,9 @@ function SimpleTablePanel({ table, title, subtitle }: { table: 'manufacturers' |
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50">
                 <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase">Nosaukums</th>
-                <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase">Valsts</th>
-                <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase">Mājaslapa</th>
-                <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase">E-pasts</th>
+                {hasCol('country') && <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase">Valsts</th>}
+                {hasCol('website') && <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase">Mājaslapa</th>}
+                {hasCol('contact_email') && <th className="text-left px-3 py-2 text-[11px] font-semibold text-gray-400 uppercase">E-pasts</th>}
                 <th className="w-20"></th>
               </tr>
             </thead>
@@ -322,9 +340,9 @@ function SimpleTablePanel({ table, title, subtitle }: { table: 'manufacturers' |
                   ) : (
                     <>
                       <td className="px-3 py-2 font-medium">{item.name}</td>
-                      <td className="px-3 py-2 text-gray-500">{item.country || '—'}</td>
-                      <td className="px-3 py-2 text-gray-500 text-xs">{item.website ? <a href={item.website} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">{item.website.replace(/^https?:\/\//, '')}</a> : '—'}</td>
-                      <td className="px-3 py-2 text-gray-500 text-xs">{item.contact_email || '—'}</td>
+                      {hasCol('country') && <td className="px-3 py-2 text-gray-500">{(item as any).country || '—'}</td>}
+                      {hasCol('website') && <td className="px-3 py-2 text-gray-500 text-xs">{(item as any).website ? <a href={(item as any).website} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">{(item as any).website.replace(/^https?:\/\//, '')}</a> : '—'}</td>}
+                      {hasCol('contact_email') && <td className="px-3 py-2 text-gray-500 text-xs">{(item as any).contact_email || '—'}</td>}
                       <td className="px-3 py-2 text-right">
                         <button onClick={() => openEdit(item)} className="text-xs text-blue-500 opacity-0 group-hover:opacity-100 transition mr-2">Labot</button>
                         <button onClick={() => setDeleteId(item.id)} className="text-xs text-red-400 opacity-0 group-hover:opacity-100 transition">Dzēst</button>
@@ -342,15 +360,15 @@ function SimpleTablePanel({ table, title, subtitle }: { table: 'manufacturers' |
         <Field label="Nosaukums" required>
           <Input value={form.name} onChange={v => setForm({ ...form, name: v })} placeholder="Vitra" />
         </Field>
-        <Field label="Valsts">
+        {hasCol('country') && <Field label="Valsts">
           <Input value={form.country} onChange={v => setForm({ ...form, country: v })} placeholder="Šveice" />
-        </Field>
-        <Field label="Mājaslapa">
+        </Field>}
+        {hasCol('website') && <Field label="Mājaslapa">
           <Input value={form.website} onChange={v => setForm({ ...form, website: v })} placeholder="https://www.vitra.com" />
-        </Field>
-        <Field label="E-pasts">
+        </Field>}
+        {hasCol('contact_email') && <Field label="E-pasts">
           <Input value={form.contact_email} onChange={v => setForm({ ...form, contact_email: v })} placeholder="info@vitra.com" type="email" />
-        </Field>
+        </Field>}
         {error && <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2 mb-2">{error}</div>}
         <div className="flex gap-2 mt-5">
           <ActionBtn onClick={save} label={saving ? 'Saglabā...' : 'Saglabāt'} disabled={saving || !form.name.trim()} />
