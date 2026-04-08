@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase-client';
+import Link from 'next/link';
 
 // ── Labels (LV) ────────────────────────────────────────────────────────────
 const L = {
@@ -11,8 +12,8 @@ const L = {
   office: { lv: 'LV', es: 'ES', uae: 'UAE' } as Record<string,string>,
   price: { budget: '< €500', mid: '€500–2k', premium: '€2k–5k', luxury: '> €5k' } as Record<string,string>,
 };
-const MATERIALS = ['Koks','Metāls','Stikls','Audums','Āda','Keramika','Akmens','Betons'];
-const FINISHES = ['Matēts','Lakots','Pulēts','Krāsots','Dabīgs','Anodēts','Smilšstrūkl.'];
+const DEFAULT_MATERIALS = ['Koks','Metāls','Stikls','Audums','Āda','Keramika','Akmens','Betons'];
+const DEFAULT_FINISHES = ['Matēts','Lakots','Pulēts','Krāsots','Dabīgs','Anodēts','Smilšstrūkl.'];
 
 // ── SVG Drawing generators ─────────────────────────────────────────────────
 function hash(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0; return Math.abs(h); }
@@ -112,6 +113,10 @@ export default function CatalogPage() {
   const [pdfZoom, setPdfZoom] = useState(0.7);
   const [showFilters, setShowFilters] = useState(true);
 
+  // Dynamic lookups
+  const [MATERIALS, setMaterials] = useState<string[]>(DEFAULT_MATERIALS);
+  const [FINISHES, setFinishes] = useState<string[]>(DEFAULT_FINISHES);
+
   // Add form
   const [addOpen, setAddOpen] = useState(false);
   const [newDrw, setNewDrw] = useState({ name: '', category_id: '', subcategory_id: '', drawing_type: 'purchasable', manufacturer_id: '', price: '', materials: [] as string[], file_url: '' });
@@ -124,7 +129,9 @@ export default function CatalogPage() {
       supabase.from('manufacturers').select('*').order('name'),
       supabase.from('dealers').select('*').order('name'),
       supabase.from('projects').select('*').order('name'),
-    ]).then(([c, m, d, p]) => {
+      supabase.from('lookup_values').select('*').eq('category', 'material').order('sort_order'),
+      supabase.from('lookup_values').select('*').eq('category', 'finish').order('sort_order'),
+    ]).then(([c, m, d, p, mats, fins]) => {
       if (c.error || m.error || d.error || p.error) {
         setRefErr(c.error?.message || m.error?.message || d.error?.message || p.error?.message || 'Unknown error');
       } else {
@@ -132,6 +139,8 @@ export default function CatalogPage() {
         setMfrs(m.data || []);
         setDlrs(d.data || []);
         setProjs(p.data || []);
+        if (mats.data && mats.data.length > 0) setMaterials(mats.data.map((v: any) => v.value));
+        if (fins.data && fins.data.length > 0) setFinishes(fins.data.map((v: any) => v.value));
       }
       setRefLoading(false);
     });
@@ -297,6 +306,7 @@ export default function CatalogPage() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400 font-mono">{dLoading ? '...' : `${drawings.length} rasēj.`}</span>
+          <Link href="/admin" className="text-xs text-gray-400 hover:text-gray-600 font-medium px-2 py-1.5 rounded border border-gray-200 hover:border-gray-300 transition">⚙ Admin</Link>
           <button onClick={() => setAddOpen(true)} className="bg-[#1a1a1a] text-white text-xs font-semibold px-3.5 py-1.5 rounded-md hover:bg-black transition">+ Pievienot</button>
         </div>
       </header>
