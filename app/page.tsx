@@ -77,7 +77,7 @@ function FullPDF({ name, id, page = 1, pages = 3, scale = 1 }: { name: string; i
 // ── Tiny components ────────────────────────────────────────────────────────
 function Chip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
-    <button onClick={onClick} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border transition-all cursor-pointer ${active ? 'border-blue-600 bg-blue-50 text-blue-700 font-semibold' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
+    <button onClick={onClick} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs border transition-all cursor-pointer ${active ? 'border-ant-primary bg-ant-primary-light text-ant-primary-dark font-semibold' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'}`}>
       {label}
     </button>
   );
@@ -88,7 +88,7 @@ function InfoRow({ label, value, accent }: { label: string; value?: string | num
   return (
     <div className="flex justify-between py-1.5 border-b border-gray-100 text-[13px] gap-3">
       <span className="text-gray-400 shrink-0">{label}</span>
-      <span className={`text-right ${accent ? 'font-bold text-blue-600' : 'font-medium'}`}>{value}</span>
+      <span className={`text-right ${accent ? 'font-bold text-ant-primary' : 'font-medium'}`}>{value}</span>
     </div>
   );
 }
@@ -362,7 +362,7 @@ export default function CatalogPage() {
           ) : hasFileUrl ? (
             <div className="flex flex-col items-center justify-center w-full h-full gap-5 overflow-auto p-8">
               <div className="shadow-2xl"><FullPDF name={selDrw.name} id={selDrw.id} page={pdfPage} pages={pg} scale={pdfZoom} /></div>
-              <a href={selDrw.file_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition">Atvērt Google Drive ↗</a>
+              <a href={selDrw.file_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-ant-primary hover:bg-ant-primary-dark text-white rounded-lg font-semibold text-sm transition">Atvērt Google Drive ↗</a>
             </div>
           ) : (
             <div className="overflow-auto flex justify-center items-start p-8 w-full">
@@ -372,7 +372,7 @@ export default function CatalogPage() {
         </div>
         {!hasDrive && pg > 1 && <div className="h-16 bg-[#111] border-t border-[#333] flex items-center justify-center gap-1.5 shrink-0">
           {Array.from({ length: pg }, (_, i) => (
-            <button key={i} onClick={() => setPdfPage(i + 1)} className={`w-8 h-11 rounded text-xs font-mono flex items-center justify-center border-2 ${pdfPage === i + 1 ? 'border-blue-500 bg-[#2a2a2a] text-white' : 'border-[#444] bg-[#1a1a1a] text-gray-500'}`}>{i + 1}</button>
+            <button key={i} onClick={() => setPdfPage(i + 1)} className={`w-8 h-11 rounded text-xs font-mono flex items-center justify-center border-2 ${pdfPage === i + 1 ? 'border-ant-primary bg-[#2a2a2a] text-white' : 'border-[#444] bg-[#1a1a1a] text-gray-500'}`}>{i + 1}</button>
           ))}
         </div>}
       </div>
@@ -382,7 +382,7 @@ export default function CatalogPage() {
   // ══════════════════════════════════════════════════════════════════════
   // RENDER — Loading / Error
   // ══════════════════════════════════════════════════════════════════════
-  if (refLoading) return <div className="min-h-screen flex items-center justify-center"><div className="text-center"><div className="w-6 h-6 border-[3px] border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto" /><p className="text-gray-400 text-sm mt-3">Savienojas ar Supabase...</p></div></div>;
+  if (refLoading) return <div className="min-h-screen flex items-center justify-center"><div className="text-center"><div className="w-6 h-6 border-[3px] border-ant-border border-t-ant-primary rounded-full animate-spin mx-auto" /><p className="text-gray-400 text-sm mt-3">Savienojas ar Supabase...</p></div></div>;
   if (refErr) return <div className="min-h-screen flex items-center justify-center p-6"><div className="text-center max-w-md"><div className="text-4xl mb-2">⚠</div><h2 className="text-lg font-bold mb-2">Savienojuma kļūda</h2><pre className="text-xs text-red-600 bg-red-50 p-3 rounded-lg text-left overflow-auto">{refErr}</pre></div></div>;
 
   // ══════════════════════════════════════════════════════════════════════
@@ -391,7 +391,7 @@ export default function CatalogPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-5 py-2.5 flex items-center justify-between sticky top-0 z-40">
+      <header className="bg-white border-b border-ant-border px-5 py-2.5 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3.5">
           <div className="w-8 h-8 bg-[#1a1a1a] rounded-md flex items-center justify-center text-white text-[10px] font-bold tracking-wider font-mono">OAD</div>
           <div>
@@ -409,18 +409,18 @@ export default function CatalogPage() {
       <div className="flex" style={{ minHeight: 'calc(100vh - 48px)' }}>
         {/* ── Filters ─────────────────────────────────────────────── */}
         {showFilters && (
-          <aside className="w-[268px] bg-white border-r border-gray-200 overflow-y-auto shrink-0">
+          <aside className="w-[268px] bg-ant-surface border-r border-ant-border overflow-y-auto shrink-0">
             <div className="p-3.5">
               <div className="relative mb-3">
                 <input type="text" placeholder="Meklēt nosaukumā..." value={search} onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-7 pr-3 py-1.5 border border-gray-200 rounded-md text-[12.5px] outline-none bg-[#fafaf9] focus:border-blue-400" />
+                  className="w-full pl-7 pr-3 py-1.5 border border-ant-border rounded-md text-[12.5px] outline-none bg-ant-bg focus:border-ant-primary" />
                 <span className="absolute left-2 top-2 text-gray-300 text-sm">⌕</span>
               </div>
 
               {activeFilters > 0 && (
-                <div className="flex items-center justify-between mb-2.5 px-2 py-1 bg-blue-50 rounded text-[11.5px]">
-                  <span className="text-blue-700 font-medium">{activeFilters} aktīvi filtri</span>
-                  <button onClick={clearAll} className="text-blue-600 underline">Notīrīt</button>
+                <div className="flex items-center justify-between mb-2.5 px-2 py-1 bg-ant-primary-light rounded text-[11.5px]">
+                  <span className="text-ant-primary-dark font-medium">{activeFilters} aktīvi filtri</span>
+                  <button onClick={clearAll} className="text-ant-primary underline">Notīrīt</button>
                 </div>
               )}
 
@@ -443,14 +443,14 @@ export default function CatalogPage() {
               </Section>
 
               <Section title="Ražotājs">
-                <select value={fMfr} onChange={e => setFMfr(e.target.value)} className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                <select value={fMfr} onChange={e => setFMfr(e.target.value)} className="w-full p-1.5 border border-gray-200 rounded text-xs bg-ant-bg">
                   <option value="">Visi</option>
                   {manufacturers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                 </select>
               </Section>
 
               <Section title="Dīleris">
-                <select value={fDlr} onChange={e => setFDlr(e.target.value)} className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                <select value={fDlr} onChange={e => setFDlr(e.target.value)} className="w-full p-1.5 border border-gray-200 rounded text-xs bg-ant-bg">
                   <option value="">Visi</option>
                   {dealers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
@@ -465,7 +465,7 @@ export default function CatalogPage() {
 
         {/* ── Main ────────────────────────────────────────────────── */}
         <main className="flex-1 flex flex-col min-w-0">
-          <div className="px-4 py-1.5 bg-white border-b border-gray-100 flex items-center gap-2">
+          <div className="px-4 py-1.5 bg-white border-b border-ant-border flex items-center gap-2">
             <button onClick={() => setShowFilters(!showFilters)} className={`text-[11.5px] px-2.5 py-1 border rounded ${showFilters ? 'bg-gray-100 border-gray-200' : 'border-gray-200'} text-gray-500`}>☰ Filtri</button>
             {selId && <button onClick={() => setSelId(null)} className="text-[11.5px] px-2.5 py-1 bg-red-50 border border-red-200 rounded text-red-600">← Galerija</button>}
           </div>
@@ -473,7 +473,7 @@ export default function CatalogPage() {
           {!selId ? (
             /* Gallery */
             <div className="p-4 overflow-auto flex-1">
-              {dLoading ? <div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" /></div> :
+              {dLoading ? <div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-ant-border border-t-ant-primary rounded-full animate-spin" /></div> :
                 drawings.length === 0 ? (
                   <div className="text-center py-16 text-gray-400">
                     <div className="text-4xl mb-2">∅</div>
@@ -484,7 +484,7 @@ export default function CatalogPage() {
                   <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))' }}>
                     {drawings.map(d => (
                       <div key={d.id} onClick={() => setSelId(d.id)} className="cursor-pointer group">
-                        <div className="rounded overflow-hidden border border-gray-200 bg-white group-hover:shadow-md transition-shadow">
+                        <div className="rounded overflow-hidden border border-ant-border bg-white group-hover:shadow-md transition-shadow">
                           <Thumb name={d.name} id={d.id} thumbnailUrl={d.thumbnail_url} driveFileId={d.drive_file_id} />
                         </div>
                         <div className="pt-1 px-0.5">
@@ -502,10 +502,10 @@ export default function CatalogPage() {
             </div>
           ) : (
             /* Detail */
-            !selDrw ? <div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" /></div> : (
+            !selDrw ? <div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-ant-border border-t-ant-primary rounded-full animate-spin" /></div> : (
               <div className="flex flex-1 overflow-hidden">
                 {/* PDF / Drive preview */}
-                <div className="flex-1 bg-[#e8e7e4] flex flex-col items-center justify-center p-5 overflow-auto">
+                <div className="flex-1 bg-[#ede9e0] flex flex-col items-center justify-center p-5 overflow-auto">
                   {selDrw.drive_file_id ? (
                     <div className="flex flex-col items-center gap-3 w-full">
                       <div onClick={() => { setFullscreen(true); setPdfZoom(0.7); }} className="cursor-zoom-in shadow-xl relative max-w-xs w-full">
@@ -518,7 +518,7 @@ export default function CatalogPage() {
                       </div>
                       {selDrw.file_url && (
                         <a href={selDrw.file_url} target="_blank" rel="noreferrer"
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition">
+                          className="px-4 py-2 bg-ant-primary hover:bg-ant-primary-dark text-white rounded-lg font-semibold text-sm transition">
                           Atvērt Drive ↗
                         </a>
                       )}
@@ -531,7 +531,7 @@ export default function CatalogPage() {
                       </div>
                       {selDrw.file_url && (
                         <a href={selDrw.file_url} target="_blank" rel="noreferrer"
-                          className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition">
+                          className="mt-3 px-4 py-2 bg-ant-primary hover:bg-ant-primary-dark text-white rounded-lg font-semibold text-sm transition">
                           Atvērt Drive ↗
                         </a>
                       )}
@@ -547,7 +547,7 @@ export default function CatalogPage() {
                 </div>
 
                 {/* Info */}
-                <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto p-4 shrink-0">
+                <div className="w-80 bg-white border-l border-ant-border overflow-y-auto p-4 shrink-0">
                   {/* Header row with edit button */}
                   <div className="flex items-start justify-between mb-0.5 gap-2">
                     <h2 className="text-[17px] font-bold leading-snug flex-1">{selDrw.name}</h2>
@@ -568,7 +568,7 @@ export default function CatalogPage() {
                             status: selDrw.status || 'active',
                           });
                         }}
-                        className="text-[11px] px-2 py-1 border border-gray-200 rounded text-gray-500 hover:border-blue-400 hover:text-blue-600 transition shrink-0"
+                        className="text-[11px] px-2 py-1 border border-gray-200 rounded text-gray-500 hover:border-ant-primary hover:text-ant-primary transition shrink-0"
                       >✎ Labot</button>
                     )}
                   </div>
@@ -586,7 +586,7 @@ export default function CatalogPage() {
                       <InfoRow label="Cena" value={selDrw.price ? `€${Number(selDrw.price).toLocaleString()}` : null} accent />
                       <InfoRow label="Cenu grupa" value={selDrw.price_range ? L.price[selDrw.price_range] : null} />
                       <InfoRow label="Statuss" value={L.status[selDrw.status]} />
-                      {selDrw.file_url && <a href={selDrw.file_url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 mt-2 inline-block">Atvērt oriģinālu ↗</a>}
+                      {selDrw.file_url && <a href={selDrw.file_url} target="_blank" rel="noreferrer" className="text-xs text-ant-primary mt-2 inline-block">Atvērt oriģinālu ↗</a>}
                     </>
                   ) : (
                     // Edit mode
@@ -594,12 +594,12 @@ export default function CatalogPage() {
                       <div>
                         <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Nosaukums</label>
                         <input value={editForm.name} onChange={e => setEditForm((f: any) => ({ ...f, name: e.target.value }))}
-                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm outline-none focus:border-blue-400 bg-[#fafaf9]" />
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm outline-none focus:border-ant-primary bg-ant-bg" />
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Kategorija</label>
                         <select value={editForm.category_id} onChange={e => setEditForm((f: any) => ({ ...f, category_id: e.target.value, subcategory_id: '' }))}
-                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-ant-bg">
                           <option value="">—</option>
                           {parentCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
@@ -608,7 +608,7 @@ export default function CatalogPage() {
                         <div>
                           <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Apakškategorija</label>
                           <select value={editForm.subcategory_id} onChange={e => setEditForm((f: any) => ({ ...f, subcategory_id: e.target.value }))}
-                            className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                            className="w-full p-1.5 border border-gray-200 rounded text-xs bg-ant-bg">
                             <option value="">—</option>
                             {categories.filter(c => c.parent_id === editForm.category_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                           </select>
@@ -617,14 +617,14 @@ export default function CatalogPage() {
                       <div>
                         <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Tips</label>
                         <select value={editForm.drawing_type} onChange={e => setEditForm((f: any) => ({ ...f, drawing_type: e.target.value }))}
-                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-ant-bg">
                           {Object.entries(L.type).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Ražotājs</label>
                         <select value={editForm.manufacturer_id} onChange={e => setEditForm((f: any) => ({ ...f, manufacturer_id: e.target.value }))}
-                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-ant-bg">
                           <option value="">—</option>
                           {manufacturers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                         </select>
@@ -632,7 +632,7 @@ export default function CatalogPage() {
                       <div>
                         <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Dīleris</label>
                         <select value={editForm.dealer_id} onChange={e => setEditForm((f: any) => ({ ...f, dealer_id: e.target.value }))}
-                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-ant-bg">
                           <option value="">—</option>
                           {dealers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                         </select>
@@ -658,12 +658,12 @@ export default function CatalogPage() {
                       <div>
                         <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Cena (EUR)</label>
                         <input type="number" value={editForm.price} onChange={e => setEditForm((f: any) => ({ ...f, price: e.target.value }))}
-                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm outline-none bg-[#fafaf9]" />
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm outline-none bg-ant-bg" />
                       </div>
                       <div>
                         <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Statuss</label>
                         <select value={editForm.status} onChange={e => setEditForm((f: any) => ({ ...f, status: e.target.value }))}
-                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-ant-bg">
                           {Object.entries(L.status).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                         </select>
                       </div>
@@ -736,7 +736,7 @@ export default function CatalogPage() {
                       )}
 
                       <div className="border-t border-gray-100 mt-4 pt-3">
-                        <button onClick={() => setShowSim(!showSim)} className={`w-full py-2 rounded-md text-xs font-semibold transition ${showSim ? 'bg-blue-600 text-white' : 'bg-gray-100 text-blue-600 hover:bg-gray-200'}`}>
+                        <button onClick={() => setShowSim(!showSim)} className={`w-full py-2 rounded-md text-xs font-semibold transition ${showSim ? 'bg-ant-primary text-white' : 'bg-gray-100 text-ant-primary hover:bg-gray-200'}`}>
                           {showSim ? 'Paslēpt līdzīgos' : `Līdzīgi rasējumi (${similar.length})`}
                         </button>
                         {showSim && similar.length > 0 && (
@@ -766,35 +766,35 @@ export default function CatalogPage() {
           <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
             <h2 className="text-lg font-bold mb-4">Jauns rasējums</h2>
             <label className="block text-[11.5px] font-semibold text-gray-500 mt-2 mb-0.5">Nosaukums *</label>
-            <input value={newDrw.name} onChange={e => setNewDrw({ ...newDrw, name: e.target.value })} className="w-full px-2.5 py-1.5 border border-gray-200 rounded text-sm outline-none focus:border-blue-400 bg-[#fafaf9]" placeholder="Biroja krēsls Executive" />
+            <input value={newDrw.name} onChange={e => setNewDrw({ ...newDrw, name: e.target.value })} className="w-full px-2.5 py-1.5 border border-gray-200 rounded text-sm outline-none focus:border-ant-primary bg-ant-bg" placeholder="Biroja krēsls Executive" />
 
             <label className="block text-[11.5px] font-semibold text-gray-500 mt-3 mb-0.5">Kategorija</label>
-            <select value={newDrw.category_id} onChange={e => setNewDrw({ ...newDrw, category_id: e.target.value, subcategory_id: '' })} className="w-full p-1.5 border border-gray-200 rounded text-sm bg-[#fafaf9]">
+            <select value={newDrw.category_id} onChange={e => setNewDrw({ ...newDrw, category_id: e.target.value, subcategory_id: '' })} className="w-full p-1.5 border border-gray-200 rounded text-sm bg-ant-bg">
               <option value="">—</option>
               {parentCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
 
             {newDrw.category_id && <>
               <label className="block text-[11.5px] font-semibold text-gray-500 mt-3 mb-0.5">Apakškategorija</label>
-              <select value={newDrw.subcategory_id} onChange={e => setNewDrw({ ...newDrw, subcategory_id: e.target.value })} className="w-full p-1.5 border border-gray-200 rounded text-sm bg-[#fafaf9]">
+              <select value={newDrw.subcategory_id} onChange={e => setNewDrw({ ...newDrw, subcategory_id: e.target.value })} className="w-full p-1.5 border border-gray-200 rounded text-sm bg-ant-bg">
                 <option value="">—</option>
                 {categories.filter(c => c.parent_id === newDrw.category_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </>}
 
             <label className="block text-[11.5px] font-semibold text-gray-500 mt-3 mb-0.5">Tips</label>
-            <select value={newDrw.drawing_type} onChange={e => setNewDrw({ ...newDrw, drawing_type: e.target.value })} className="w-full p-1.5 border border-gray-200 rounded text-sm bg-[#fafaf9]">
+            <select value={newDrw.drawing_type} onChange={e => setNewDrw({ ...newDrw, drawing_type: e.target.value })} className="w-full p-1.5 border border-gray-200 rounded text-sm bg-ant-bg">
               {Object.entries(L.type).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
 
             <label className="block text-[11.5px] font-semibold text-gray-500 mt-3 mb-0.5">Ražotājs</label>
-            <select value={newDrw.manufacturer_id} onChange={e => setNewDrw({ ...newDrw, manufacturer_id: e.target.value })} className="w-full p-1.5 border border-gray-200 rounded text-sm bg-[#fafaf9]">
+            <select value={newDrw.manufacturer_id} onChange={e => setNewDrw({ ...newDrw, manufacturer_id: e.target.value })} className="w-full p-1.5 border border-gray-200 rounded text-sm bg-ant-bg">
               <option value="">—</option>
               {manufacturers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
 
             <label className="block text-[11.5px] font-semibold text-gray-500 mt-3 mb-0.5">Cena (EUR)</label>
-            <input type="number" value={newDrw.price} onChange={e => setNewDrw({ ...newDrw, price: e.target.value })} className="w-full px-2.5 py-1.5 border border-gray-200 rounded text-sm outline-none bg-[#fafaf9]" placeholder="1200" />
+            <input type="number" value={newDrw.price} onChange={e => setNewDrw({ ...newDrw, price: e.target.value })} className="w-full px-2.5 py-1.5 border border-gray-200 rounded text-sm outline-none bg-ant-bg" placeholder="1200" />
 
             <label className="block text-[11.5px] font-semibold text-gray-500 mt-3 mb-1">Materiāli</label>
             <div className="flex flex-wrap gap-1 mb-3">
@@ -802,7 +802,7 @@ export default function CatalogPage() {
             </div>
 
             <label className="block text-[11.5px] font-semibold text-gray-500 mt-1 mb-0.5">PDF URL (Google Drive / Dropbox)</label>
-            <input value={newDrw.file_url} onChange={e => setNewDrw({ ...newDrw, file_url: e.target.value })} className="w-full px-2.5 py-1.5 border border-gray-200 rounded text-sm outline-none bg-[#fafaf9]" placeholder="https://drive.google.com/file/d/..." />
+            <input value={newDrw.file_url} onChange={e => setNewDrw({ ...newDrw, file_url: e.target.value })} className="w-full px-2.5 py-1.5 border border-gray-200 rounded text-sm outline-none bg-ant-bg" placeholder="https://drive.google.com/file/d/..." />
 
             <div className="flex gap-2 mt-5">
               <button onClick={saveDrawing} disabled={saving || !newDrw.name.trim()} className="flex-1 bg-[#1a1a1a] text-white py-2.5 rounded-md text-sm font-semibold hover:bg-black transition disabled:opacity-40">
