@@ -18,8 +18,24 @@ const DEFAULT_FINISHES = ['Matēts','Lakots','Pulēts','Krāsots','Dabīgs','Ano
 // ── SVG Drawing generators ─────────────────────────────────────────────────
 function hash(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0; return Math.abs(h); }
 
-function Thumb({ name, id, w = 155 }: { name: string; id: string; w?: number }) {
+function Thumb({ name, id, w = 155, thumbnailUrl, driveFileId }: { name: string; id: string; w?: number; thumbnailUrl?: string | null; driveFileId?: string | null }) {
   const h = hash(id); const hue = h % 360;
+  // Use real thumbnail if available
+  const imgSrc = thumbnailUrl || (driveFileId ? `https://drive.google.com/thumbnail?id=${driveFileId}&sz=w${w * 2}` : null);
+  const [imgErr, setImgErr] = useState(false);
+
+  if (imgSrc && !imgErr) {
+    return (
+      <div style={{ width: w, height: w * 1.414 }} className="block rounded-sm bg-gray-100 overflow-hidden relative">
+        <img src={imgSrc} alt={name} onError={() => setImgErr(true)}
+          className="w-full h-full object-cover" loading="lazy" />
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent px-1.5 pb-1 pt-3">
+          <div className="text-[9px] text-white font-mono leading-tight truncate">{(name||'').slice(0,22)}</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <svg width={w} height={w * 1.414} viewBox="0 0 150 212" className="block rounded-sm">
       <rect width="150" height="212" fill={`hsl(${hue},6%,95%)`} />
@@ -390,7 +406,7 @@ export default function CatalogPage() {
                     {drawings.map(d => (
                       <div key={d.id} onClick={() => setSelId(d.id)} className="cursor-pointer group">
                         <div className="rounded overflow-hidden border border-gray-200 bg-white group-hover:shadow-md transition-shadow">
-                          <Thumb name={d.name} id={d.id} />
+                          <Thumb name={d.name} id={d.id} thumbnailUrl={d.thumbnail_url} driveFileId={d.drive_file_id} />
                         </div>
                         <div className="pt-1 px-0.5">
                           <div className="text-[11.5px] font-semibold leading-tight truncate">{d.name}</div>
@@ -472,7 +488,7 @@ export default function CatalogPage() {
                       <div className="grid grid-cols-2 gap-2 mt-2.5">
                         {similar.map(s => (
                           <div key={s.id} className="cursor-pointer" onClick={() => { setSelId(s.id); setShowSim(false); }}>
-                            <div className="rounded overflow-hidden border border-gray-200"><Thumb name={s.name} id={s.id} w={120} /></div>
+                            <div className="rounded overflow-hidden border border-gray-200"><Thumb name={s.name} id={s.id} w={120} thumbnailUrl={s.thumbnail_url} driveFileId={s.drive_file_id} /></div>
                             <div className="text-[10px] font-medium mt-0.5 leading-tight">{s.name}</div>
                             <div className="text-[9.5px] text-gray-400">{s.manufacturer_name} {s.price ? `· €${Number(s.price).toLocaleString()}` : ''}</div>
                           </div>
