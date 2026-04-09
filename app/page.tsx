@@ -138,6 +138,15 @@ export default function CatalogPage() {
   const [newDrw, setNewDrw] = useState({ name: '', category_id: '', subcategory_id: '', drawing_type: 'purchasable', manufacturer_id: '', price: '', materials: [] as string[], file_url: '' });
   const [saving, setSaving] = useState(false);
 
+  // Edit form
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<any>({});
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Category materials filter
+  const [catMaterials, setCatMaterials] = useState<Record<string, string[]>>({});
+  const [catFinishes, setCatFinishes] = useState<Record<string, string[]>>({});
+
   // ── Load reference data ────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
@@ -147,7 +156,9 @@ export default function CatalogPage() {
       supabase.from('projects').select('*').order('name'),
       supabase.from('lookup_values').select('*').eq('category', 'material').order('sort_order'),
       supabase.from('lookup_values').select('*').eq('category', 'finish').order('sort_order'),
-    ]).then(([c, m, d, p, mats, fins]) => {
+      supabase.from('category_materials').select('*'),
+      supabase.from('category_finishes').select('*'),
+    ]).then(([c, m, d, p, mats, fins, catMats, catFins]) => {
       if (c.error || m.error || d.error || p.error) {
         setRefErr(c.error?.message || m.error?.message || d.error?.message || p.error?.message || 'Unknown error');
       } else {
@@ -157,6 +168,23 @@ export default function CatalogPage() {
         setProjs(p.data || []);
         if (mats.data && mats.data.length > 0) setMaterials(mats.data.map((v: any) => v.value));
         if (fins.data && fins.data.length > 0) setFinishes(fins.data.map((v: any) => v.value));
+        // category_materials — group by category_id (graceful if table missing)
+        if (catMats.data && catMats.data.length > 0) {
+          const grouped: Record<string, string[]> = {};
+          catMats.data.forEach((row: any) => {
+            if (!grouped[row.category_id]) grouped[row.category_id] = [];
+            grouped[row.category_id].push(row.material);
+          });
+          setCatMaterials(grouped);
+        }
+        if (catFins.data && catFins.data.length > 0) {
+          const grouped: Record<string, string[]> = {};
+          catFins.data.forEach((row: any) => {
+            if (!grouped[row.category_id]) grouped[row.category_id] = [];
+            grouped[row.category_id].push(row.finish);
+          });
+          setCatFinishes(grouped);
+        }
       }
       setRefLoading(false);
     });
@@ -164,6 +192,37 @@ export default function CatalogPage() {
 
   const parentCats = useMemo(() => categories.filter(c => !c.parent_id), [categories]);
   const subcats = useMemo(() => fCat ? categories.filter(c => c.parent_id === fCat) : [], [categories, fCat]);
+
+  // Filtered materials/finishes based on selected category (or edit form category)
+  const visibleMaterials = useMemo(() => {
+    const catId = fCat;
+    if (catId && catMaterials[catId] && catMaterials[catId].length > 0) return MATERIALS.filter(m => catMaterials[catId].includes(m));
+    return MATERIALS;
+  }, [fCat, catMaterials, MATERIALS]);
+
+  const visibleFinishes = useMemo(() => {
+    const catId = fCat;
+    if (catId && catFinishes[catId] && catFinishes[catId].length > 0) return FINISHES.filter(f => catFinishes[catId].includes(f));
+    return FINISHES;
+  }, [fCat, catFinishes, FINISHES]);
+
+  const editVisibleMaterials = useMemo(() => {
+    const catId = editForm.category_id;
+    if (catId && catMaterials[catId] && catMaterials[catId].length > 0) return MATERIALS.filter(m => catMaterials[catId].includes(m));
+    return MATERIALS;
+  }, [editForm.category_id, catMaterials, MATERIALS]);
+
+  const editVisibleFinishes = useMemo(() => {
+    const catId = editForm.category_id;
+    if (catId && catFinishes[catId] && catFinishes[catId].length > 0) return FINISHES.filter(f => catFinishes[catId].includes(f));
+    return FINISHES;
+  }, [editForm.category_id, catFinishes, FINISHES]);
+
+  const newDrwVisibleMaterials = useMemo(() => {
+    const catId = newDrw.category_id;
+    if (catId && catMaterials[catId] && catMaterials[catId].length > 0) return MATERIALS.filter(m => catMaterials[catId].includes(m));
+    return MATERIALS;
+  }, [newDrw.category_id, catMaterials, MATERIALS]);
 
   // ── Load drawings ──────────────────────────────────────────────────
   const loadDrawings = useCallback(async () => {
@@ -195,7 +254,8 @@ export default function CatalogPage() {
 
   // ── Load detail ────────────────────────────────────────────────────
   useEffect(() => {
-    if (!selId) { setSelDrw(null); setSimilar([]); return; }
+    if (!selId) { setSelDrw(null); setSimilar([]); setEditing(false); return; }
+    setEditing(false);
     (async () => {
       const { data } = await supabase.from('drawings').select(`
         *,
@@ -262,10 +322,12 @@ export default function CatalogPage() {
   const clearAll = () => { setSearch(''); setFCat(''); setFSubcat(''); setFType(''); setFMfr(''); setFDlr(''); setFMat(''); setFFin(''); setFPrice(''); setFStatus(''); };
 
   // ══════════════════════════════════════════════════════════════════════
-  // RENDER — Fullscreen PDF
+  // RENDER — Fullscreen PDF / Drive
   // ══════════════════════════════════════════════════════════════════════
   if (fullscreen && selDrw) {
     const pg = selDrw.page_count || 3;
+    const hasDrive = !!selDrw.drive_file_id;
+    const hasFileUrl = !!selDrw.file_url;
     return (
       <div className="fixed inset-0 z-50 flex flex-col bg-[#1a1a1a]">
         <div className="h-12 bg-[#111] flex items-center justify-between px-4 border-b border-[#333] shrink-0">
@@ -274,24 +336,41 @@ export default function CatalogPage() {
             <span className="text-gray-200 text-sm font-medium">{selDrw.name}</span>
             <span className="text-gray-500 text-xs font-mono">{selDrw.manufacturers?.name}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            {[
-              { label: '−', fn: () => setPdfZoom(z => Math.max(0.3, z - 0.15)) },
-            ].map((b, i) => <button key={i} onClick={b.fn} className="w-7 h-7 bg-[#333] border border-[#555] rounded text-gray-300 flex items-center justify-center text-sm">{b.label}</button>)}
-            <span className="text-gray-400 text-xs font-mono w-11 text-center">{Math.round(pdfZoom * 100)}%</span>
-            <button onClick={() => setPdfZoom(z => Math.min(1.8, z + 0.15))} className="w-7 h-7 bg-[#333] border border-[#555] rounded text-gray-300 flex items-center justify-center text-sm">+</button>
-            <span className="text-[#444] mx-1">│</span>
-            <button onClick={() => setPdfPage(p => Math.max(1, p - 1))} disabled={pdfPage <= 1} className="w-7 h-7 bg-[#333] border border-[#555] rounded text-gray-300 flex items-center justify-center text-xs disabled:opacity-30">◀</button>
-            <span className="text-gray-400 text-xs font-mono">{pdfPage}/{pg}</span>
-            <button onClick={() => setPdfPage(p => Math.min(pg, p + 1))} disabled={pdfPage >= pg} className="w-7 h-7 bg-[#333] border border-[#555] rounded text-gray-300 flex items-center justify-center text-xs disabled:opacity-30">▶</button>
-            <span className="text-[#444] mx-1">│</span>
-            <button onClick={() => setPdfZoom(0.7)} className="w-7 h-7 bg-[#333] border border-[#555] rounded text-gray-300 flex items-center justify-center text-[11px]">Fit</button>
-          </div>
+          {!hasDrive ? (
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setPdfZoom(z => Math.max(0.3, z - 0.15))} className="w-7 h-7 bg-[#333] border border-[#555] rounded text-gray-300 flex items-center justify-center text-sm">−</button>
+              <span className="text-gray-400 text-xs font-mono w-11 text-center">{Math.round(pdfZoom * 100)}%</span>
+              <button onClick={() => setPdfZoom(z => Math.min(1.8, z + 0.15))} className="w-7 h-7 bg-[#333] border border-[#555] rounded text-gray-300 flex items-center justify-center text-sm">+</button>
+              <span className="text-[#444] mx-1">│</span>
+              <button onClick={() => setPdfPage(p => Math.max(1, p - 1))} disabled={pdfPage <= 1} className="w-7 h-7 bg-[#333] border border-[#555] rounded text-gray-300 flex items-center justify-center text-xs disabled:opacity-30">◀</button>
+              <span className="text-gray-400 text-xs font-mono">{pdfPage}/{pg}</span>
+              <button onClick={() => setPdfPage(p => Math.min(pg, p + 1))} disabled={pdfPage >= pg} className="w-7 h-7 bg-[#333] border border-[#555] rounded text-gray-300 flex items-center justify-center text-xs disabled:opacity-30">▶</button>
+              <span className="text-[#444] mx-1">│</span>
+              <button onClick={() => setPdfZoom(0.7)} className="w-7 h-7 bg-[#333] border border-[#555] rounded text-gray-300 flex items-center justify-center text-[11px]">Fit</button>
+            </div>
+          ) : hasFileUrl ? (
+            <a href={selDrw.file_url} target="_blank" rel="noreferrer" className="text-xs text-gray-400 hover:text-white px-3 py-1.5 bg-[#333] border border-[#555] rounded transition">Atvērt Drive ↗</a>
+          ) : null}
         </div>
-        <div className="flex-1 overflow-auto flex justify-center items-start p-8 bg-[#252525]">
-          <div className="shadow-2xl"><FullPDF name={selDrw.name} id={selDrw.id} page={pdfPage} pages={pg} scale={pdfZoom} /></div>
+        <div className="flex-1 overflow-hidden flex bg-[#252525]">
+          {hasDrive ? (
+            <iframe
+              src={`https://drive.google.com/file/d/${selDrw.drive_file_id}/preview`}
+              className="w-full h-full border-0"
+              allow="autoplay"
+            />
+          ) : hasFileUrl ? (
+            <div className="flex flex-col items-center justify-center w-full h-full gap-5 overflow-auto p-8">
+              <div className="shadow-2xl"><FullPDF name={selDrw.name} id={selDrw.id} page={pdfPage} pages={pg} scale={pdfZoom} /></div>
+              <a href={selDrw.file_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition">Atvērt Google Drive ↗</a>
+            </div>
+          ) : (
+            <div className="overflow-auto flex justify-center items-start p-8 w-full">
+              <div className="shadow-2xl"><FullPDF name={selDrw.name} id={selDrw.id} page={pdfPage} pages={pg} scale={pdfZoom} /></div>
+            </div>
+          )}
         </div>
-        {pg > 1 && <div className="h-16 bg-[#111] border-t border-[#333] flex items-center justify-center gap-1.5 shrink-0">
+        {!hasDrive && pg > 1 && <div className="h-16 bg-[#111] border-t border-[#333] flex items-center justify-center gap-1.5 shrink-0">
           {Array.from({ length: pg }, (_, i) => (
             <button key={i} onClick={() => setPdfPage(i + 1)} className={`w-8 h-11 rounded text-xs font-mono flex items-center justify-center border-2 ${pdfPage === i + 1 ? 'border-blue-500 bg-[#2a2a2a] text-white' : 'border-[#444] bg-[#1a1a1a] text-gray-500'}`}>{i + 1}</button>
           ))}
@@ -377,8 +456,8 @@ export default function CatalogPage() {
                 </select>
               </Section>
 
-              <Section title="Materiāls"><div className="flex flex-wrap gap-1">{MATERIALS.map(m => <Chip key={m} label={m} active={fMat === m} onClick={() => setFMat(fMat === m ? '' : m)} />)}</div></Section>
-              <Section title="Apdare"><div className="flex flex-wrap gap-1">{FINISHES.map(f => <Chip key={f} label={f} active={fFin === f} onClick={() => setFFin(fFin === f ? '' : f)} />)}</div></Section>
+              <Section title="Materiāls"><div className="flex flex-wrap gap-1">{visibleMaterials.map(m => <Chip key={m} label={m} active={fMat === m} onClick={() => setFMat(fMat === m ? '' : m)} />)}</div></Section>
+              <Section title="Apdare"><div className="flex flex-wrap gap-1">{visibleFinishes.map(f => <Chip key={f} label={f} active={fFin === f} onClick={() => setFFin(fFin === f ? '' : f)} />)}</div></Section>
               <Section title="Cenu diapazons"><div className="flex flex-wrap gap-1">{Object.entries(L.price).map(([k, v]) => <Chip key={k} label={v} active={fPrice === k} onClick={() => setFPrice(fPrice === k ? '' : k)} />)}</div></Section>
             </div>
           </aside>
@@ -425,77 +504,255 @@ export default function CatalogPage() {
             /* Detail */
             !selDrw ? <div className="flex justify-center py-12"><div className="w-5 h-5 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin" /></div> : (
               <div className="flex flex-1 overflow-hidden">
-                {/* PDF */}
+                {/* PDF / Drive preview */}
                 <div className="flex-1 bg-[#e8e7e4] flex flex-col items-center justify-center p-5 overflow-auto">
-                  <div onClick={() => { setFullscreen(true); setPdfZoom(0.7); }} className="cursor-zoom-in shadow-xl relative">
-                    <FullPDF name={selDrw.name} id={selDrw.id} page={pdfPage} pages={selDrw.page_count || 3} scale={0.55} />
-                    <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 bg-black/70 text-white px-2.5 py-1 rounded text-[10.5px] flex items-center gap-1.5">🔍 Pilnekrāna skats</div>
-                  </div>
-                  {(selDrw.page_count || 3) > 1 && (
-                    <div className="flex gap-2 mt-3 items-center">
-                      <button onClick={() => setPdfPage(p => Math.max(1, p - 1))} disabled={pdfPage <= 1} className="w-6 h-6 bg-white border border-gray-300 rounded text-xs flex items-center justify-center disabled:opacity-30">◀</button>
-                      <span className="text-xs font-mono text-gray-500">{pdfPage}/{selDrw.page_count || 3}</span>
-                      <button onClick={() => setPdfPage(p => Math.min(selDrw.page_count || 3, p + 1))} disabled={pdfPage >= (selDrw.page_count || 3)} className="w-6 h-6 bg-white border border-gray-300 rounded text-xs flex items-center justify-center disabled:opacity-30">▶</button>
+                  {selDrw.drive_file_id ? (
+                    <div className="flex flex-col items-center gap-3 w-full">
+                      <div onClick={() => { setFullscreen(true); setPdfZoom(0.7); }} className="cursor-zoom-in shadow-xl relative max-w-xs w-full">
+                        <img
+                          src={`https://drive.google.com/thumbnail?id=${selDrw.drive_file_id}&sz=w800`}
+                          alt={selDrw.name}
+                          className="w-full rounded object-contain bg-white"
+                        />
+                        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 bg-black/70 text-white px-2.5 py-1 rounded text-[10.5px] flex items-center gap-1.5">🔍 Pilnekrāna skats</div>
+                      </div>
+                      {selDrw.file_url && (
+                        <a href={selDrw.file_url} target="_blank" rel="noreferrer"
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition">
+                          Atvērt Drive ↗
+                        </a>
+                      )}
                     </div>
+                  ) : (
+                    <>
+                      <div onClick={() => { setFullscreen(true); setPdfZoom(0.7); }} className="cursor-zoom-in shadow-xl relative">
+                        <FullPDF name={selDrw.name} id={selDrw.id} page={pdfPage} pages={selDrw.page_count || 3} scale={0.55} />
+                        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 bg-black/70 text-white px-2.5 py-1 rounded text-[10.5px] flex items-center gap-1.5">🔍 Pilnekrāna skats</div>
+                      </div>
+                      {selDrw.file_url && (
+                        <a href={selDrw.file_url} target="_blank" rel="noreferrer"
+                          className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition">
+                          Atvērt Drive ↗
+                        </a>
+                      )}
+                      {(selDrw.page_count || 3) > 1 && (
+                        <div className="flex gap-2 mt-3 items-center">
+                          <button onClick={() => setPdfPage(p => Math.max(1, p - 1))} disabled={pdfPage <= 1} className="w-6 h-6 bg-white border border-gray-300 rounded text-xs flex items-center justify-center disabled:opacity-30">◀</button>
+                          <span className="text-xs font-mono text-gray-500">{pdfPage}/{selDrw.page_count || 3}</span>
+                          <button onClick={() => setPdfPage(p => Math.min(selDrw.page_count || 3, p + 1))} disabled={pdfPage >= (selDrw.page_count || 3)} className="w-6 h-6 bg-white border border-gray-300 rounded text-xs flex items-center justify-center disabled:opacity-30">▶</button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
                 {/* Info */}
                 <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto p-4 shrink-0">
-                  <h2 className="text-[17px] font-bold mb-0.5">{selDrw.name}</h2>
-                  <div className="text-[11px] text-gray-400 font-mono mb-4">{selDrw.id.slice(0, 8)}… · {new Date(selDrw.created_at).toLocaleDateString('lv')}</div>
-                  <InfoRow label="Kategorija" value={[selDrw.categories?.name, selDrw.subcategory?.name].filter(Boolean).join(' → ') || '—'} />
-                  <InfoRow label="Tips" value={L.type[selDrw.drawing_type]} />
-                  <InfoRow label="Ražotājs" value={selDrw.manufacturers?.name} />
-                  <InfoRow label="Dīleris" value={selDrw.dealers?.name} />
-                  <InfoRow label="Materiāli" value={selDrw.materials?.length ? selDrw.materials.join(', ') : null} />
-                  <InfoRow label="Apdare" value={selDrw.finishes?.length ? selDrw.finishes.join(', ') : null} />
-                  <InfoRow label="Cena" value={selDrw.price ? `€${Number(selDrw.price).toLocaleString()}` : null} accent />
-                  <InfoRow label="Cenu grupa" value={selDrw.price_range ? L.price[selDrw.price_range] : null} />
-                  <InfoRow label="Statuss" value={L.status[selDrw.status]} />
-
-                  {selDrw.file_url && <a href={selDrw.file_url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 mt-2 inline-block">Atvērt oriģinālu ↗</a>}
-
-                  {selDrw.drawing_projects?.length > 0 && (
-                    <div className="border-t border-gray-100 mt-4 pt-3">
-                      <h3 className="text-xs font-semibold text-gray-500 mb-1.5">Projekti</h3>
-                      {selDrw.drawing_projects.map((dp: any) => dp.projects && (
-                        <div key={dp.project_id} className="flex justify-between px-2 py-1 bg-gray-50 rounded text-[11.5px] mb-0.5">
-                          <span className="font-medium">{dp.projects.name}</span>
-                          <span className="text-gray-400">{L.office[dp.projects.location]} · {L.pstatus[dp.projects.status]}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {selDrw.drawing_assignees?.length > 0 && (
-                    <div className="border-t border-gray-100 mt-4 pt-3">
-                      <h3 className="text-xs font-semibold text-gray-500 mb-1.5">Atbildīgie</h3>
-                      {selDrw.drawing_assignees.map((da: any) => da.profiles && (
-                        <div key={da.profile_id} className="flex justify-between px-2 py-1 bg-gray-50 rounded text-[11.5px] mb-0.5">
-                          <span className="font-medium">{da.profiles.full_name}</span>
-                          <span className="text-gray-400">{da.profiles.job_title}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="border-t border-gray-100 mt-4 pt-3">
-                    <button onClick={() => setShowSim(!showSim)} className={`w-full py-2 rounded-md text-xs font-semibold transition ${showSim ? 'bg-blue-600 text-white' : 'bg-gray-100 text-blue-600 hover:bg-gray-200'}`}>
-                      {showSim ? 'Paslēpt līdzīgos' : `Līdzīgi rasējumi (${similar.length})`}
-                    </button>
-                    {showSim && similar.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2 mt-2.5">
-                        {similar.map(s => (
-                          <div key={s.id} className="cursor-pointer" onClick={() => { setSelId(s.id); setShowSim(false); }}>
-                            <div className="rounded overflow-hidden border border-gray-200"><Thumb name={s.name} id={s.id} w={120} thumbnailUrl={s.thumbnail_url} driveFileId={s.drive_file_id} /></div>
-                            <div className="text-[10px] font-medium mt-0.5 leading-tight">{s.name}</div>
-                            <div className="text-[9.5px] text-gray-400">{s.manufacturer_name} {s.price ? `· €${Number(s.price).toLocaleString()}` : ''}</div>
-                          </div>
-                        ))}
-                      </div>
+                  {/* Header row with edit button */}
+                  <div className="flex items-start justify-between mb-0.5 gap-2">
+                    <h2 className="text-[17px] font-bold leading-snug flex-1">{selDrw.name}</h2>
+                    {!editing && (
+                      <button
+                        onClick={() => {
+                          setEditing(true);
+                          setEditForm({
+                            name: selDrw.name || '',
+                            category_id: selDrw.category_id || '',
+                            subcategory_id: selDrw.subcategory_id || '',
+                            drawing_type: selDrw.drawing_type || 'purchasable',
+                            manufacturer_id: selDrw.manufacturer_id || '',
+                            dealer_id: selDrw.dealer_id || '',
+                            materials: selDrw.materials || [],
+                            finishes: selDrw.finishes || [],
+                            price: selDrw.price != null ? String(selDrw.price) : '',
+                            status: selDrw.status || 'active',
+                          });
+                        }}
+                        className="text-[11px] px-2 py-1 border border-gray-200 rounded text-gray-500 hover:border-blue-400 hover:text-blue-600 transition shrink-0"
+                      >✎ Labot</button>
                     )}
                   </div>
+                  <div className="text-[11px] text-gray-400 font-mono mb-4">{selDrw.id.slice(0, 8)}… · {new Date(selDrw.created_at).toLocaleDateString('lv')}</div>
+
+                  {!editing ? (
+                    // View mode
+                    <>
+                      <InfoRow label="Kategorija" value={[selDrw.categories?.name, selDrw.subcategory?.name].filter(Boolean).join(' → ') || '—'} />
+                      <InfoRow label="Tips" value={L.type[selDrw.drawing_type]} />
+                      <InfoRow label="Ražotājs" value={selDrw.manufacturers?.name} />
+                      <InfoRow label="Dīleris" value={selDrw.dealers?.name} />
+                      <InfoRow label="Materiāli" value={selDrw.materials?.length ? selDrw.materials.join(', ') : null} />
+                      <InfoRow label="Apdare" value={selDrw.finishes?.length ? selDrw.finishes.join(', ') : null} />
+                      <InfoRow label="Cena" value={selDrw.price ? `€${Number(selDrw.price).toLocaleString()}` : null} accent />
+                      <InfoRow label="Cenu grupa" value={selDrw.price_range ? L.price[selDrw.price_range] : null} />
+                      <InfoRow label="Statuss" value={L.status[selDrw.status]} />
+                      {selDrw.file_url && <a href={selDrw.file_url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 mt-2 inline-block">Atvērt oriģinālu ↗</a>}
+                    </>
+                  ) : (
+                    // Edit mode
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Nosaukums</label>
+                        <input value={editForm.name} onChange={e => setEditForm((f: any) => ({ ...f, name: e.target.value }))}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm outline-none focus:border-blue-400 bg-[#fafaf9]" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Kategorija</label>
+                        <select value={editForm.category_id} onChange={e => setEditForm((f: any) => ({ ...f, category_id: e.target.value, subcategory_id: '' }))}
+                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                          <option value="">—</option>
+                          {parentCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+                      {editForm.category_id && (
+                        <div>
+                          <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Apakškategorija</label>
+                          <select value={editForm.subcategory_id} onChange={e => setEditForm((f: any) => ({ ...f, subcategory_id: e.target.value }))}
+                            className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                            <option value="">—</option>
+                            {categories.filter(c => c.parent_id === editForm.category_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Tips</label>
+                        <select value={editForm.drawing_type} onChange={e => setEditForm((f: any) => ({ ...f, drawing_type: e.target.value }))}
+                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                          {Object.entries(L.type).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Ražotājs</label>
+                        <select value={editForm.manufacturer_id} onChange={e => setEditForm((f: any) => ({ ...f, manufacturer_id: e.target.value }))}
+                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                          <option value="">—</option>
+                          {manufacturers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Dīleris</label>
+                        <select value={editForm.dealer_id} onChange={e => setEditForm((f: any) => ({ ...f, dealer_id: e.target.value }))}
+                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                          <option value="">—</option>
+                          {dealers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-400 mb-1">Materiāli</label>
+                        <div className="flex flex-wrap gap-1">
+                          {editVisibleMaterials.map(m => (
+                            <Chip key={m} label={m} active={editForm.materials?.includes(m)}
+                              onClick={() => setEditForm((f: any) => ({ ...f, materials: f.materials?.includes(m) ? f.materials.filter((x: string) => x !== m) : [...(f.materials || []), m] }))} />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-400 mb-1">Apdare</label>
+                        <div className="flex flex-wrap gap-1">
+                          {editVisibleFinishes.map(fin => (
+                            <Chip key={fin} label={fin} active={editForm.finishes?.includes(fin)}
+                              onClick={() => setEditForm((f: any) => ({ ...f, finishes: f.finishes?.includes(fin) ? f.finishes.filter((x: string) => x !== fin) : [...(f.finishes || []), fin] }))} />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Cena (EUR)</label>
+                        <input type="number" value={editForm.price} onChange={e => setEditForm((f: any) => ({ ...f, price: e.target.value }))}
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm outline-none bg-[#fafaf9]" />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-400 mb-0.5">Statuss</label>
+                        <select value={editForm.status} onChange={e => setEditForm((f: any) => ({ ...f, status: e.target.value }))}
+                          className="w-full p-1.5 border border-gray-200 rounded text-xs bg-[#fafaf9]">
+                          {Object.entries(L.status).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                        </select>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          disabled={editSaving}
+                          onClick={async () => {
+                            setEditSaving(true);
+                            const payload: any = {
+                              name: editForm.name,
+                              drawing_type: editForm.drawing_type,
+                              status: editForm.status,
+                              materials: editForm.materials || [],
+                              finishes: editForm.finishes || [],
+                              price: editForm.price ? parseFloat(editForm.price) : null,
+                              category_id: editForm.category_id || null,
+                              subcategory_id: editForm.subcategory_id || null,
+                              manufacturer_id: editForm.manufacturer_id || null,
+                              dealer_id: editForm.dealer_id || null,
+                            };
+                            const { error } = await supabase.from('drawings').update(payload).eq('id', selDrw.id);
+                            if (error) { alert('Kļūda: ' + error.message); }
+                            else {
+                              setEditing(false);
+                              const { data } = await supabase.from('drawings').select(`
+                                *,
+                                categories!drawings_category_id_fkey(name,slug),
+                                subcategory:categories!drawings_subcategory_id_fkey(name,slug),
+                                manufacturers(name),
+                                dealers(name),
+                                drawing_projects(project_id, projects(id,name,status,location)),
+                                drawing_assignees(profile_id, profiles(id,full_name,job_title,office))
+                              `).eq('id', selDrw.id).single();
+                              setSelDrw(data);
+                              loadDrawings();
+                            }
+                            setEditSaving(false);
+                          }}
+                          className="flex-1 bg-[#1a1a1a] text-white py-2 rounded-md text-xs font-semibold hover:bg-black transition disabled:opacity-40"
+                        >{editSaving ? 'Saglabā...' : 'Saglabāt'}</button>
+                        <button onClick={() => setEditing(false)} className="bg-gray-100 border border-gray-200 py-2 px-3 rounded-md text-xs hover:bg-gray-200 transition">Atcelt</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!editing && (
+                    <>
+                      {selDrw.drawing_projects?.length > 0 && (
+                        <div className="border-t border-gray-100 mt-4 pt-3">
+                          <h3 className="text-xs font-semibold text-gray-500 mb-1.5">Projekti</h3>
+                          {selDrw.drawing_projects.map((dp: any) => dp.projects && (
+                            <div key={dp.project_id} className="flex justify-between px-2 py-1 bg-gray-50 rounded text-[11.5px] mb-0.5">
+                              <span className="font-medium">{dp.projects.name}</span>
+                              <span className="text-gray-400">{L.office[dp.projects.location]} · {L.pstatus[dp.projects.status]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {selDrw.drawing_assignees?.length > 0 && (
+                        <div className="border-t border-gray-100 mt-4 pt-3">
+                          <h3 className="text-xs font-semibold text-gray-500 mb-1.5">Atbildīgie</h3>
+                          {selDrw.drawing_assignees.map((da: any) => da.profiles && (
+                            <div key={da.profile_id} className="flex justify-between px-2 py-1 bg-gray-50 rounded text-[11.5px] mb-0.5">
+                              <span className="font-medium">{da.profiles.full_name}</span>
+                              <span className="text-gray-400">{da.profiles.job_title}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="border-t border-gray-100 mt-4 pt-3">
+                        <button onClick={() => setShowSim(!showSim)} className={`w-full py-2 rounded-md text-xs font-semibold transition ${showSim ? 'bg-blue-600 text-white' : 'bg-gray-100 text-blue-600 hover:bg-gray-200'}`}>
+                          {showSim ? 'Paslēpt līdzīgos' : `Līdzīgi rasējumi (${similar.length})`}
+                        </button>
+                        {showSim && similar.length > 0 && (
+                          <div className="grid grid-cols-2 gap-2 mt-2.5">
+                            {similar.map(s => (
+                              <div key={s.id} className="cursor-pointer" onClick={() => { setSelId(s.id); setShowSim(false); }}>
+                                <div className="rounded overflow-hidden border border-gray-200"><Thumb name={s.name} id={s.id} w={120} thumbnailUrl={s.thumbnail_url} driveFileId={s.drive_file_id} /></div>
+                                <div className="text-[10px] font-medium mt-0.5 leading-tight">{s.name}</div>
+                                <div className="text-[9.5px] text-gray-400">{s.manufacturer_name} {s.price ? `· €${Number(s.price).toLocaleString()}` : ''}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )
@@ -541,7 +798,7 @@ export default function CatalogPage() {
 
             <label className="block text-[11.5px] font-semibold text-gray-500 mt-3 mb-1">Materiāli</label>
             <div className="flex flex-wrap gap-1 mb-3">
-              {MATERIALS.map(m => <Chip key={m} label={m} active={newDrw.materials.includes(m)} onClick={() => setNewDrw(prev => ({ ...prev, materials: prev.materials.includes(m) ? prev.materials.filter(x => x !== m) : [...prev.materials, m] }))} />)}
+              {newDrwVisibleMaterials.map(m => <Chip key={m} label={m} active={newDrw.materials.includes(m)} onClick={() => setNewDrw(prev => ({ ...prev, materials: prev.materials.includes(m) ? prev.materials.filter(x => x !== m) : [...prev.materials, m] }))} />)}
             </div>
 
             <label className="block text-[11.5px] font-semibold text-gray-500 mt-1 mb-0.5">PDF URL (Google Drive / Dropbox)</label>
